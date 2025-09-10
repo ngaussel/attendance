@@ -4,7 +4,7 @@ mod_emargement_ui <- function(id) {
     div(class = "container",
         titlePanel("Attendance Presenter View"),
         fluidRow(
-          textInput(ns("lecture"), "Lecture", placeholder = "ex: Finance"),
+          selectInput(ns("lecture"), "Lecture", choices=COURSE_MENU, selected=COURSE_MENU[1]),
           dateInput(ns("date"), "Date", value = Sys.Date())
         ),
         actionButton(ns("start_session"), "Launch", class = "btn btn-primary"),
@@ -36,6 +36,8 @@ mod_emargement_server <- function(id,params) {
     observeEvent(input$start_session, {
       req(nzchar(input$lecture), !is.null(input$date))
       params$session_presenter <- TRUE
+      params$live_lecture <- input$lecture
+      params$live_date <- input$date
     })  
     
     observe({

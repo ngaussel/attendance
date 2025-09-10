@@ -116,7 +116,8 @@ mod_student_server <- function(id,token) {
       date <- parts[2]
       
       # Log simplifié
-      googlesheets4::sheet_append(SHEET_ID, sheet = SHEET_NAME_LOG, data = tibble(
+    
+      presence = tibble(
         ts         = format(now_utc(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
         email      = email,
         lecture    = lecture,
@@ -126,10 +127,17 @@ mod_student_server <- function(id,token) {
         student_fnid = input$fnid,
         token      = row$token,
         ok         = TRUE
-      ))
+      ) |> 
+        mutate_all(as.character) |> 
+        mutate_all(\(x) {ifelse(x=="NULL",NA,x)})
+      
+      
+      
+      googlesheets4::sheet_append(SHEET_ID, sheet = SHEET_NAME_LOG, data = presence)
       
       p_student$check_success <- TRUE
       showNotification(glue("✓ Attendance recorded for {email}"), type = "message")
+      params$nsubmit=params$nsubmit+1
       shinyjs::disable("submit")
       updateActionButton(session, "submit", label = "✔️ Submitted", disabled = TRUE)
     })

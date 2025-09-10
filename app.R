@@ -13,9 +13,12 @@ Sys.setenv(GS_SERVICE_ACCOUNT_JSON = Sys.getenv("GS_SERVICE_ACCOUNT_JSON", unset
 SHEET_ID           <- Sys.getenv("ATTENDANCE_SHEET_ID")
 SHEET_NAME_TOKENS  <- "tokens"
 SHEET_NAME_LOG     <- "log"
+SHEET_NAME_ROSTER     <- "roster"
+SHEET_NAME_MMMEF     <- "MMMEF"
 ROSTER_SHEET_NAME  <- "roster"
 DOMAIN             <- "etu.univ-paris1.fr"
 REQUIRE_ROSTER     <- FALSE
+COURSE_MENU <- c("Financial Products", "Interest Rates", "Advanced Topics")
 
 TOKEN_TTL_SECONDS  <- 25L
 FILL_SECONDS <- 30L
@@ -46,7 +49,6 @@ ui <- function(request) {
         "Attendance",
         mod_emargement_ui("attendance")  # avec namespace "attendance"
       ),
-      
       tabPanel(
         "Reporting",
         mod_reporting_ui("reporting")    # avec namespace "reporting"
@@ -55,15 +57,14 @@ ui <- function(request) {
   }
 }
 
-
-
 # --- SERVER ----------------------------------------------------------------
 
 server <- function(input, output, session) {
 
   params  <- reactiveValues(token = NULL, 
                             started = NULL, 
-                            session_presenter=FALSE)
+                            session_presenter=FALSE,
+                            nsubmit=0)
   
   mod_emargement_server("attendance",params=params)
    
@@ -74,12 +75,9 @@ server <- function(input, output, session) {
       }
     })
     
-    mod_reporting_server("reporting")
+    mod_reporting_server("reporting",params=params)
   
 }
-
-
-
 
 
 # --- LANCE APP -------------------------------------------------------------

@@ -36,21 +36,33 @@ mod_reporting_server <- function(id,params) {
     output$live<- renderUI({
       
       invalidateLater(10000, session)
-      logs <- googlesheets4::read_sheet(SHEET_ID, sheet = SHEET_NAME_LOG,col_types = "ccccccccc")
+      logs <- googlesheets4::read_sheet(SHEET_ID, sheet = SHEET_NAME_LOG,col_types = "cccccccccc")
       
       if (params$session_presenter){
         
+        # prez <-logs |> 
+        #   filter(LECTURE==params$live_lecture,
+        #          DATE==params$live_date) |> 
+        #   left_join(roster |> select(-MASTER), by="STUDENT_ID") |> 
+        #   select(all_of(report_day_columns))
+        
         prez <-logs |> 
           filter(LECTURE==params$live_lecture,
-                 DATE==params$live_date) |> 
-          left_join(roster, by="STUDENT_ID") |> 
-          select(all_of(report_day_columns))
+                DATE==params$live_date)
+        
         
         caption = paste0(params$live_lecture, " ",params$live_date)
         
         tags$div(
           tags$p(paste0("Registered: ",nrow(prez))),
-          tags$div(DT::datatable(prez,caption = caption))
+          tags$div(DT::datatable(prez,
+                                 options = list(
+                                   scrollX = TRUE,      # active le scroll horizontal
+                                   autoWidth = TRUE,    # adapte la largeur automatique
+                                   pageLength = 10       # optionnel : nombre de lignes visibles
+                                 ),
+                                 caption = caption)
+                   )
           )
         
       }else{

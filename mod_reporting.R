@@ -35,6 +35,7 @@ mod_reporting_server <- function(id,params) {
     report_day_columns <- c("STUDENT_ID","NOM","PRENOM","EMAIL","MASTER","TOKEN","TIME_STAMP")
     output$live<- renderUI({
       
+      invalidateLater(10000, session)
       logs <- googlesheets4::read_sheet(SHEET_ID, sheet = SHEET_NAME_LOG,col_types = "ccccccccc")
       
       if (params$session_presenter){

@@ -18,8 +18,10 @@ mod_student_ui <- function(id) {
         div(id = "form_zone",  # zone du formulaire
             textInput(ns("email"), "Institutional email (required)", placeholder = glue::glue("name@{DOMAIN}")),
             textInput(ns("sid"), "Student Id (required)", placeholder = "123456..."),
+            selectInput(ns("master"),"Master(required)",choices=c("IRFA","MMMEF","Other"),selected="IRFA"),
             textInput(ns("lnid"), "Student Last Name", placeholder = "..."),
             textInput(ns("fnid"), "Student First Name", placeholder = "..."),
+            
             actionButton(ns("submit"), "I'm present", class = "btn btn-primary")
         ),
         
@@ -125,6 +127,7 @@ mod_student_server <- function(id,token) {
         student_id = input$sid,
         student_lnid = input$lnid,
         student_fnid = input$fnid,
+        master=input$master,
         token      = row$token,
         ok         = TRUE
       ) |> 

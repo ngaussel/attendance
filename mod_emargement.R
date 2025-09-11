@@ -4,8 +4,8 @@ mod_emargement_ui <- function(id) {
     div(class = "container",
         titlePanel("Attendance Presenter View"),
         fluidRow(
-          selectInput(ns("lecture"), "Lecture", choices=COURSE_MENU, selected=COURSE_MENU[1]),
-          dateInput(ns("date"), "Date", value = Sys.Date())
+          column(3,selectInput(ns("lecture"), "Lecture", choices=COURSE_MENU, selected=COURSE_MENU[1])),
+          column(3,dateInput(ns("date"), "Date", value = Sys.Date()))
         ),
         actionButton(ns("start_session"), "Launch", class = "btn btn-primary"),
         br(), br(),
@@ -79,8 +79,8 @@ mod_emargement_server <- function(id,params) {
       c <- current()
       req(c$landingUrl)
       tmp <- tempfile(fileext = ".png")
-      qr <- qrencode_raw(c$landingUrl)
-      qr_resized <- qr[rep(1:nrow(qr), each = 13), rep(1:ncol(qr), each = 13)]
+      qr <- qrencode_raw(c$landingUrl,level =3 )
+      qr_resized <- qr[rep(1:nrow(qr), each = 11), rep(1:ncol(qr), each = 11)]
       writePNG(qr_resized, target = tmp)
       list(src = tmp, contentType = "image/png", alt = "QR code")
     }, deleteFile = TRUE)
@@ -92,7 +92,7 @@ mod_emargement_server <- function(id,params) {
     })
     
     output$rotate_cd <- renderText({
-      invalidateLater(500, session)
+      invalidateLater(1000, session)
       remaining <- difftime(current()$expiresAt, Sys.time(), units = "secs")
       sprintf("%.0f s", max(0, as.numeric(remaining)))
     })
@@ -102,7 +102,8 @@ mod_emargement_server <- function(id,params) {
       req(c$token)  # n'affiche rien tant qu'on n'a pas de token
       
       tagList(
-        imageOutput(ns("qr_img"), width = "350px", height = "350px"),
+        tags$br(),
+        imageOutput(ns("qr_img"), width = "450px", height = "450px"),
         div("Token: ", code(textOutput(ns("tok_txt"), inline = TRUE))),
         div("Check-in URL: ", uiOutput(ns("landing_link"))),
         div("Next refresh in: ", textOutput(ns("rotate_cd"), inline = TRUE))

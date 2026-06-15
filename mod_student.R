@@ -2,7 +2,8 @@ mod_student_ui <- function(id) {
   ns <- NS(id)
   fluidPage(
     tags$head(
-      tags$link(rel = "stylesheet", type = "text/css", href = "style.css")),
+      tags$link(rel = "stylesheet", type = "text/css", href = "style.css"),
+      tags$link(rel = "icon", type = "image/png", href = "fav2.png")),
     div(class = "container",
         tags$img(src = "sorbonne_logo.png", id = "sorbonne-logo"),
         h2("Attendance Check-in"),
@@ -85,23 +86,24 @@ mod_student_server <- function(id,token) {
         showNotification("Invalid token.", type = "error")
         return()
       }
-      if (token %in% used_tokens) {
+      dedup_key <- paste0(entry$session_id, "|", input$sid)
+      if (dedup_key %in% submitted_presences) {
         showNotification("Already submitted.", type = "warning")
         return()
       }
 
       email <- tolower(trimws(input$email %||% ""))
-      if (!is_valid_domain_email(email, DOMAIN)) {
-        showNotification(glue("Please use your @{DOMAIN} email."), type = "error")
-        return()
-      }
+      # if (!is_valid_domain_email(email, DOMAIN)) {
+      #   showNotification(glue("Please use your @{DOMAIN} email."), type = "error")
+      #   return()
+      # }
       if (input$sid == "") {
         showNotification("Please enter your student Id", type = "error")
         return()
       }
 
-      # Marquer le token consommé immédiatement dans le thread principal
-      used_tokens <<- c(used_tokens, token)
+      # Marquer immédiatement dans le thread principal (anti race condition)
+      submitted_presences <<- c(submitted_presences, dedup_key)
       shinyjs::disable("submit")
       updateActionButton(session, "submit", label = "⏳ Submitting...")
 
@@ -125,8 +127,9 @@ mod_student_server <- function(id,token) {
         mutate_all(\(x) ifelse(x == "NULL", NA, x))
 
       # Écriture Sheets en arrière-plan
+      current_token <- googlesheets4::gs4_token()
       future({
-        googlesheets4::gs4_auth(path = Sys.getenv("GS_SERVICE_ACCOUNT_JSON"))
+        googlesheets4::gs4_auth(token = current_token)
         googlesheets4::sheet_append(SHEET_ID, sheet = SHEET_NAME_LOG, data = presence)
       }) %...>% (function(...) {
         p_student$check_success <- TRUE
@@ -134,7 +137,7 @@ mod_student_server <- function(id,token) {
         updateActionButton(session, "submit", label = "✔️ Submitted")
       }) %...!% (function(err) {
         showNotification("Error recording attendance. Please retry.", type = "error")
-        used_tokens <<- setdiff(used_tokens, token)  # libérer le token si l'écriture échoue
+        submitted_presences <<- setdiff(submitted_presences, dedup_key)
         shinyjs::enable("submit")
         updateActionButton(session, "submit", label = "I'm present")
       })

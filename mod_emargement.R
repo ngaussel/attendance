@@ -59,14 +59,9 @@ mod_emargement_server <- function(id,params) {
         "?t=", URLencode(tkn)
       )
       
-      googlesheets4::sheet_append(SHEET_ID, sheet = SHEET_NAME_TOKENS, data = tibble(
-        token = tkn,
-        session_id = session_id,
-        issued_at = format(now, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
-        expires_at = format(exp,  "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
-        used = FALSE
-      ))
-      
+      # Stocker le token en mémoire (pas d'appel Sheets)
+      token_store[[tkn]] <<- list(session_id = session_id, expires_at = exp)
+
       current(list(
         token = tkn,
         landingUrl = landing,

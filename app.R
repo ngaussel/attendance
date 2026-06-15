@@ -5,6 +5,13 @@ library(glue)
 library(qrencoder)
 library(png)
 library(shinyjs)
+library(future)
+library(promises)
+plan(multisession)
+
+# Shared in-memory state (survives across sessions within the same R process)
+token_store  <- list()   # named list: token -> list(session_id, expires_at)
+used_tokens  <- character(0)
 
 # --- CONFIG ENV ----------------------------------------------------------------
 Sys.setenv(ATTENDANCE_SHEET_ID = Sys.getenv("ATTENDANCE_SHEET_ID", unset = "1RiiC0gsPn-29YfOGgFsuaivjmkwWsYDknfcZipIdwKg"))
@@ -61,10 +68,9 @@ ui <- function(request) {
 
 server <- function(input, output, session) {
 
-  params  <- reactiveValues(token = NULL, 
-                            started = NULL, 
-                            session_presenter=FALSE,
-                            nsubmit=0)
+  params  <- reactiveValues(token = NULL,
+                            started = NULL,
+                            session_presenter=FALSE)
   
   mod_emargement_server("attendance",params=params)
    

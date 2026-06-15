@@ -1,6 +1,7 @@
 mod_student_ui <- function(id) {
   ns <- NS(id)
   fluidPage(
+    shinyjs::useShinyjs(),
     tags$head(
       tags$link(rel = "stylesheet", type = "text/css", href = "style.css"),
       tags$link(rel = "icon", type = "image/png", href = "fav2.png")),
@@ -15,13 +16,15 @@ mod_student_ui <- function(id) {
         ), 
         
         p(span(class = "muted", "This link expires in ", strong(textOutput(ns("cd"), inline = TRUE)))),
-        
+        tags$p("All fields are required."),
+        tags$p(HTML("Please be patient, confirmation might take a bit of time. <br> Only register once.")),
+
         div(id = "form_zone",  # zone du formulaire
-            textInput(ns("email"), "Institutional email (required)", placeholder = glue::glue("name@{DOMAIN}")),
-            textInput(ns("sid"), "Student Id (required)", placeholder = "123456..."),
-            selectInput(ns("master"),"Master(required)",choices=c("IRFA","MMMEF","Other"),selected="IRFA"),
-            textInput(ns("lnid"), "Student Last Name", placeholder = "..."),
-            textInput(ns("fnid"), "Student First Name", placeholder = "..."),
+            textInput(ns("email"), "Email", placeholder = "your@email.com"),
+            textInput(ns("sid"), "Student Id", placeholder = "123456..."),
+            selectInput(ns("master"), "Master", choices=c("IRFA","MMMEF","Other"), selected="IRFA"),
+            textInput(ns("lnid"), "Last Name", placeholder = "..."),
+            textInput(ns("fnid"), "First Name", placeholder = "..."),
             
             actionButton(ns("submit"), "I'm present", class = "btn btn-primary")
         ),
@@ -39,8 +42,25 @@ mod_student_server <- function(id,token) {
     
     ns <- session$ns
     
-    p_student<- reactiveValues(check_success = FALSE)
+    p_student <- reactiveValues(check_success = FALSE)
     sessionStartTime <- reactiveVal(NULL)
+
+    # Déclenche la géolocalisation dès le chargement de la page
+    observe({
+      shinyjs::runjs(sprintf('
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            function(pos) {
+              Shiny.setInputValue("%s", pos.coords.latitude);
+              Shiny.setInputValue("%s", pos.coords.longitude);
+              Shiny.setInputValue("%s", Math.round(pos.coords.accuracy));
+            },
+            function(err) { Shiny.setInputValue("%s", true); },
+            {enableHighAccuracy: true, timeout: 15000}
+          );
+        }
+      ', ns("geo_lat"), ns("geo_lon"), ns("geo_accuracy"), ns("geo_denied")))
+    })
     
     observe({
       req(token)
@@ -86,6 +106,10 @@ mod_student_server <- function(id,token) {
         showNotification("Invalid token.", type = "error")
         return()
       }
+      if (now_utc() > entry$expires_at + FILL_SECONDS) {
+        showNotification("Token expired. Please scan the QR code again.", type = "error")
+        return()
+      }
       dedup_key <- paste0(entry$session_id, "|", input$sid)
       if (dedup_key %in% submitted_presences) {
         showNotification("Already submitted.", type = "warning")
@@ -93,13 +117,41 @@ mod_student_server <- function(id,token) {
       }
 
       email <- tolower(trimws(input$email %||% ""))
-      # if (!is_valid_domain_email(email, DOMAIN)) {
-      #   showNotification(glue("Please use your @{DOMAIN} email."), type = "error")
-      #   return()
-      # }
-      if (input$sid == "") {
-        showNotification("Please enter your student Id", type = "error")
+      if (email == "") {
+        showNotification("Please enter your email.", type = "error")
         return()
+      }
+      if (trimws(input$sid) == "") {
+        showNotification("Please enter your student Id.", type = "error")
+        return()
+      }
+      if (trimws(input$lnid) == "") {
+        showNotification("Please enter your last name.", type = "error")
+        return()
+      }
+      if (trimws(input$fnid) == "") {
+        showNotification("Please enter your first name.", type = "error")
+        return()
+      }
+
+      # Vérification géolocalisation
+      if (!is.null(entry$lat)) {
+        if (isTRUE(input$geo_denied)) {
+          showNotification("📍 Location access is required to validate attendance.", type = "error")
+          return()
+        }
+        if (is.null(input$geo_lat)) {
+          showNotification("📍 Acquiring your position, please wait...", type = "warning")
+          return()
+        }
+        dist_m <- haversine_m(input$geo_lat, input$geo_lon, entry$lat, entry$lon)
+        if (dist_m > GEO_RADIUS_METERS) {
+          showNotification(
+            sprintf("📍 You appear to be too far from the classroom (%.0f m):", dist_m),
+            type = "error"
+          )
+          return()
+        }
       }
 
       # Marquer immédiatement dans le thread principal (anti race condition)
@@ -121,6 +173,7 @@ mod_student_server <- function(id,token) {
         student_fnid = input$fnid,
         master       = input$master,
         token        = token,
+        geo_accuracy = input$geo_accuracy %||% NA_integer_,
         ok           = TRUE
       ) |>
         mutate_all(as.character) |>

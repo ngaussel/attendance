@@ -18,6 +18,16 @@ REQUIRE_ROSTER     <- FALSE
 COURSE_MENU <- c("Financial Products", "Interest Rates", "Advanced Topics")
 
 TOKEN_TTL_SECONDS  <- 25L
-FILL_SECONDS <- 1000L
+FILL_SECONDS <- 50L
 TOKEN_LENGTH <- 8L
 ALPHABET <- "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+GEO_RADIUS_METERS <- 3000L
+
+VENUES <- c(
+  "Sorbonne - Amphi Richelieu"  = "48.84893,2.34343",
+  "Sorbonne - Salle Cavaillès"  = "48.84870,2.34320",
+  "Centre PMF - Amphi B"        = "48.82811,2.35476",
+  "Centre PMF - Salle 5.13"     = "48.82820,2.35490",
+  "MSE - Salle des Thèses"      = "48.83267,2.35744"
+)

@@ -3,10 +3,8 @@ token_store  <- list()   # named list: token -> list(session_id, expires_at)
 submitted_presences <- character(0)  # "session_id|student_id" already submitted
 
 # --- CONFIG ENV ----------------------------------------------------------------
-Sys.setenv(ATTENDANCE_SHEET_ID = Sys.getenv("ATTENDANCE_SHEET_ID", unset = "1RiiC0gsPn-29YfOGgFsuaivjmkwWsYDknfcZipIdwKg"))
-Sys.setenv(GS_SERVICE_ACCOUNT_JSON = Sys.getenv("GS_SERVICE_ACCOUNT_JSON", unset = "id_api_google.json"))
-
-SHEET_ID           <- Sys.getenv("ATTENDANCE_SHEET_ID")
+SHEET_ID <- Sys.getenv("ATTENDANCE_SHEET_ID")
+if (!nzchar(SHEET_ID)) stop("ATTENDANCE_SHEET_ID is not set. Add it to .Renviron.")
 SHEET_NAME_TOKENS  <- "tokens"
 SHEET_NAME_LOG     <- "log"
 SHEET_NAME_ROSTER     <- "roster"

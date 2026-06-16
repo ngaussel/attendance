@@ -17,6 +17,8 @@ mod_emargement_ui <- function(id) {
             span(style = "margin-left:10px;", textOutput(ns("gps_status"), inline = TRUE))
           )
         ),
+        sliderInput(ns("geo_radius"), "Geolocation radius (m)",
+          min = 0, max = 5000, value = 300, step = 50),
         actionButton(ns("start_session"), "Launch", class = "btn btn-primary"),
         br(), br(),
         uiOutput(ns("qr_zone"))
@@ -113,13 +115,12 @@ mod_emargement_server <- function(id,params) {
         "?t=", URLencode(tkn)
       )
       
-      # Stocker le token en mémoire (pas d'appel Sheets)
-      message(sprintf("[token] session=%s lat=%s lon=%s", session_id, params$session_lat, params$session_lon))
       token_store[[tkn]] <<- list(
         session_id = session_id,
         expires_at = exp,
         lat = params$session_lat,
-        lon = params$session_lon
+        lon = params$session_lon,
+        geo_radius = input$geo_radius
       )
 
       current(list(

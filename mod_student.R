@@ -145,7 +145,8 @@ mod_student_server <- function(id,token) {
           return()
         }
         dist_m <- haversine_m(input$geo_lat, input$geo_lon, entry$lat, entry$lon)
-        if (dist_m > GEO_RADIUS_METERS) {
+        radius <- if (is.null(entry$geo_radius)) GEO_RADIUS_METERS else entry$geo_radius
+        if (dist_m > radius) {
           showNotification(
             sprintf("📍 You appear to be too far from the classroom (%.0f m):", dist_m),
             type = "error"

@@ -97,4 +97,12 @@ is_in_roster <- function(email) {
   any(tolower(trimws(r$email)) == tolower(trimws(email)))
 }
 
+haversine_m <- function(lat1, lon1, lat2, lon2) {
+  R <- 6371000
+  phi1 <- lat1 * pi/180; phi2 <- lat2 * pi/180
+  dphi <- (lat2 - lat1) * pi/180; dlam <- (lon2 - lon1) * pi/180
+  a <- sin(dphi/2)^2 + cos(phi1)*cos(phi2)*sin(dlam/2)^2
+  2 * R * atan2(sqrt(a), sqrt(1 - a))
+}
+
 `%||%` <- function(a,b) if (is.null(a) || length(a)==0) b else a

@@ -1,12 +1,24 @@
 mod_emargement_ui <- function(id) {
   ns <- NS(id)
   fluidPage(
+    shinyjs::useShinyjs(),
     div(class = "container",
         titlePanel("Attendance Presenter View"),
         fluidRow(
-          column(3,selectInput(ns("lecture"), "Lecture", choices=COURSE_MENU, selected=COURSE_MENU[1])),
-          column(3,dateInput(ns("date"), "Date", value = Sys.Date()))
+          column(3, selectInput(ns("lecture"), "Lecture", choices=COURSE_MENU, selected=COURSE_MENU[1])),
+          column(3, dateInput(ns("date"), "Date", value = Sys.Date()))
+          ),
+          selectInput(ns("venue"), "Location",
+            choices = c("Sans géolocalisation" = "none", VENUES, "Ma position actuelle" = "gps")),
+        conditionalPanel(
+          condition = paste0("input['", ns("venue"), "'] === 'gps'"),
+          div(style = "margin-bottom:10px;",
+            actionButton(ns("capture_gps"), "📍 Capturer ma position", class = "btn btn-secondary btn-sm"),
+            span(style = "margin-left:10px;", textOutput(ns("gps_status"), inline = TRUE))
+          )
         ),
+        sliderInput(ns("geo_radius"), "Geolocation radius (m)",
+          min = 0, max = 5000, value = 300, step = 50),
         actionButton(ns("start_session"), "Launch", class = "btn btn-primary"),
         br(), br(),
         uiOutput(ns("qr_zone"))
@@ -18,9 +30,10 @@ mod_emargement_server <- function(id,params) {
   moduleServer(id, function(input, output, session) {
 
     ns <- session$ns
-    
+
     current <- reactiveVal(list())
-   
+    presenter_coords <- reactiveValues(lat = NULL, lon = NULL)
+
     token_timer <- reactiveTimer(TOKEN_TTL_SECONDS * 1000, session)
     
     # --- RÉCUPÉRATION DU TOKEN VIA URL --------------------------
@@ -32,13 +45,56 @@ mod_emargement_server <- function(id,params) {
       }
     })
     
+    # --- GPS CAPTURE -------------------------------------------
+    observeEvent(input$capture_gps, {
+      shinyjs::runjs(sprintf('
+        navigator.geolocation.getCurrentPosition(
+          function(pos) {
+            Shiny.setInputValue("%s", pos.coords.latitude);
+            Shiny.setInputValue("%s", pos.coords.longitude);
+          },
+          function(err) { alert("Erreur géolocalisation : " + err.message); },
+          {enableHighAccuracy: true, timeout: 10000}
+        );
+      ', ns("gps_lat"), ns("gps_lon")))
+    })
+
+    observeEvent(input$gps_lat, {
+      req(input$gps_lat, input$gps_lon)
+      presenter_coords$lat <- input$gps_lat
+      presenter_coords$lon <- input$gps_lon
+    })
+
+    output$gps_status <- renderText({
+      if (!is.null(presenter_coords$lat))
+        sprintf("✅ %.5f, %.5f", presenter_coords$lat, presenter_coords$lon)
+      else ""
+    })
+
     # --- PRÉSENTATEUR ------------------------------------------
     observeEvent(input$start_session, {
       req(nzchar(input$lecture), !is.null(input$date))
+
+      if (input$venue == "none") {
+        params$session_lat <- NULL
+        params$session_lon <- NULL
+      } else if (input$venue == "gps") {
+        if (is.null(presenter_coords$lat)) {
+          showNotification("Capturez d'abord votre position.", type = "warning")
+          return()
+        }
+        params$session_lat <- presenter_coords$lat
+        params$session_lon <- presenter_coords$lon
+      } else {
+        parts <- as.numeric(strsplit(input$venue, ",")[[1]])
+        params$session_lat <- parts[1]
+        params$session_lon <- parts[2]
+      }
+
       params$session_presenter <- TRUE
       params$live_lecture <- input$lecture
       params$live_date <- input$date
-    })  
+    })
     
     observe({
       req(nzchar(input$lecture), !is.null(input$date))
@@ -59,14 +115,14 @@ mod_emargement_server <- function(id,params) {
         "?t=", URLencode(tkn)
       )
       
-      googlesheets4::sheet_append(SHEET_ID, sheet = SHEET_NAME_TOKENS, data = tibble(
-        token = tkn,
+      token_store[[tkn]] <<- list(
         session_id = session_id,
-        issued_at = format(now, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
-        expires_at = format(exp,  "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
-        used = FALSE
-      ))
-      
+        expires_at = exp,
+        lat = params$session_lat,
+        lon = params$session_lon,
+        geo_radius = input$geo_radius
+      )
+
       current(list(
         token = tkn,
         landingUrl = landing,
@@ -104,7 +160,15 @@ mod_emargement_server <- function(id,params) {
       tagList(
         tags$br(),
         imageOutput(ns("qr_img"), width = "450px", height = "450px"),
-        div("Token: ", code(textOutput(ns("tok_txt"), inline = TRUE))),
+        div(
+          "Token: ",
+          code(
+            span(
+              style = "font-size: 18px; font-weight: bold;",
+              textOutput(ns("tok_txt"), inline = TRUE)
+            )
+          )
+        ),
         div("Check-in URL: ", uiOutput(ns("landing_link"))),
         div("Next refresh in: ", textOutput(ns("rotate_cd"), inline = TRUE))
       )

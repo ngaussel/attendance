@@ -187,7 +187,7 @@ mod_student_server <- function(id,token) {
       lecture  <- parts[1]
       date     <- parts[2]
       presence <- tibble(
-        ts           = format(now_utc(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
+        ts           = format(now_utc(), "%Y-%m-%dT%H:%M:%S", tz = "Europe/Paris"),
         email        = email,
         lecture      = lecture,
         date         = date,

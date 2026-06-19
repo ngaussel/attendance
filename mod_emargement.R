@@ -159,7 +159,7 @@ mod_emargement_server <- function(id,params) {
       
       tagList(
         tags$br(),
-        imageOutput(ns("qr_img"), width = "450px", height = "450px"),
+        imageOutput(ns("qr_img"), width = "350px", height = "350px"),
         div(
           "Token: ",
           code(

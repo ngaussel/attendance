@@ -4,7 +4,18 @@ mod_student_ui <- function(id) {
     shinyjs::useShinyjs(),
     tags$head(
       tags$link(rel = "stylesheet", type = "text/css", href = "style.css"),
-      tags$link(rel = "icon", type = "image/png", href = "fav2.png")),
+      tags$link(rel = "icon", type = "image/png", href = "fav2.png"),
+      tags$script(src = "https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js"),
+      tags$script(HTML(sprintf('
+        $(document).on("shiny:connected", function() {
+          FingerprintJS.load()
+            .then(function(fp) { return fp.get(); })
+            .then(function(result) {
+              Shiny.setInputValue("%s", result.visitorId);
+            });
+        });
+      ', ns("fingerprint"))))
+    ),
     div(class = "container",
         tags$img(src = "sorbonne_logo.png", id = "sorbonne-logo"),
         h2("Attendance Check-in"),
@@ -116,6 +127,12 @@ mod_student_server <- function(id,token) {
         return()
       }
 
+      fp <- input$fingerprint %||% ""
+      if (nzchar(fp) && fp %in% (device_fingerprints[[entry$session_id]] %||% character(0))) {
+        showNotification("This device has already been used to register for this session.", type = "error")
+        return()
+      }
+
       email <- tolower(trimws(input$email %||% ""))
       if (email == "") {
         showNotification("Please enter your email.", type = "error")
@@ -157,6 +174,11 @@ mod_student_server <- function(id,token) {
 
       # Marquer immédiatement dans le thread principal (anti race condition)
       submitted_presences <<- c(submitted_presences, dedup_key)
+      if (nzchar(fp)) {
+        device_fingerprints[[entry$session_id]] <<- c(
+          device_fingerprints[[entry$session_id]] %||% character(0), fp
+        )
+      }
       shinyjs::disable("submit")
       updateActionButton(session, "submit", label = "⏳ Submitting...")
 

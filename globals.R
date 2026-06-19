@@ -1,6 +1,7 @@
 # Shared in-memory state (survives across sessions within the same R process)
 token_store  <- list()   # named list: token -> list(session_id, expires_at)
 submitted_presences <- character(0)  # "session_id|student_id" already submitted
+device_fingerprints <- list()        # named list: session_id -> character vector of hashes
 
 # --- CONFIG ENV ----------------------------------------------------------------
 SHEET_ID <- Sys.getenv("ATTENDANCE_SHEET_ID")

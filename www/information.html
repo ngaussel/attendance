@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy & Data Disclosure — Attendance Check-in</title>
+  <link rel="icon" type="image/svg+xml" href="gdpr-icon.svg">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    h1 { font-size: 1.2rem; margin-bottom: 1.2rem; }
+    h2 { font-size: 1rem; margin-top: 1.6rem; margin-bottom: 0.4rem; }
+    p, li { font-size: 0.9rem; line-height: 1.6; color: #333; text-align: justify; }
+    ul { padding-left: 1.2rem; }
+    .back-link { display: inline-block; margin-top: 2rem; font-size: 0.85rem; }
+    .note { background: #f5f5f5; border-left: 3px solid #ccc; padding: 8px 12px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <img src="sorbonne_logo.png" id="sorbonne-logo" alt="Sorbonne logo">
+
+  <h1>Privacy &amp; Data Disclosure</h1>
+
+  <p>This page explains what data the attendance check-in form collects, why, and how it is handled.</p>
+
+  <h2>Data collected and stored</h2>
+  <ul>
+    <li><strong>First name, last name, email address, student ID</strong></li>
+    <li><strong>Master programme</strong> (IRFA, MMMEF, or Other)</li>
+    <li><strong>Course name and date</strong> of the session</li>
+    <li><strong>Submission timestamp</strong></li>
+    <li><strong>GPS accuracy</strong> (in metres) — <em>not</em> your coordinates</li>
+  </ul>
+
+  <p>This data is stored in a restricted Google Sheets spreadsheet accessible only to teaching staff of the relevant programme, solely for the purpose of recording attendance.</p>
+
+  <h2>Technical anti-fraud controls</h2>
+
+  <p>Two technical checks are performed to prevent fraudulent submissions. Neither produces data that is stored beyond the current session.</p>
+
+  <h2>Device fingerprint</h2>
+  <p>When the form loads, a fingerprint of your browser and device is computed (based on characteristics such as screen resolution, browser version, and rendering engine). This fingerprint is used to detect and block a second check-in from the same device within the same session. <strong>The fingerprint is never written to any database or spreadsheet and is discarded when the session ends.</strong></p>
+
+  <h2>Geolocation</h2>
+  <p>If the lecturer has enabled location verification, the form requests access to your GPS position to confirm you are physically present in the classroom. Your browser will ask for your permission before sharing this information. <strong>Your coordinates are never stored</strong> — only the GPS accuracy (in metres) is recorded alongside your attendance entry to indicate that a location check was performed.</p>
+
+  <div class="note">
+    <p>If you refuse location access and the session requires it, your submission will not be accepted. Please contact your lecturer if you have a technical issue with geolocation.</p>
+  </div>
+
+  <h2>Legal basis and retention</h2>
+  <p>Processing is carried out on the basis of the legitimate academic interest of the institution in keeping accurate attendance records. Data is retained for the duration of the academic year and may be kept longer if required by institutional regulations.</p>
+
+  <h2>Your rights</h2>
+  <p>Under the GDPR you have the right to access, rectify, or request deletion of your personal data. To exercise these rights, contact your programme administrator.</p>
+
+  <a class="back-link" href="javascript:history.back()">← Back to the check-in form</a>
+
+</body>
+</html>

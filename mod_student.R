@@ -36,10 +36,12 @@ mod_student_ui <- function(id) {
             selectInput(ns("master"), "Master", choices=c("IRFA","MMMEF","Other"), selected="IRFA"),
             textInput(ns("lnid"), "Last Name", placeholder = "..."),
             textInput(ns("fnid"), "First Name", placeholder = "..."),
-            
-            actionButton(ns("submit"), "I'm present", class = "btn btn-primary")
-        ),
-        
+            actionButton(ns("submit"), "I'm present", class = "btn btn-primary"),
+            tags$br(),
+            tags$a(href = "information.html", target = "_self",
+                 "Privacy & data disclosure",style = "margin-top: 2rem; font-size: 1.1 rem; color: #888"
+                 )
+          ),
         div(id = "feedback_zone",
             div(class = "ok", textOutput(ns("success_msg"))),
             div(class = "err", textOutput(ns("error_msg")))

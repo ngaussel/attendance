@@ -9,7 +9,7 @@ mod_emargement_ui <- function(id) {
           column(3, dateInput(ns("date"), "Date", value = Sys.Date()))
           ),
           selectInput(ns("venue"), "Location",
-            choices = c("Sans géolocalisation" = "none", VENUES, "Ma position actuelle" = "gps")),
+            choices = c("Ma position actuelle" = "gps",VENUES,"Sans géolocalisation" = "none")),
         conditionalPanel(
           condition = paste0("input['", ns("venue"), "'] === 'gps'"),
           div(style = "margin-bottom:10px;",
@@ -18,7 +18,7 @@ mod_emargement_ui <- function(id) {
           )
         ),
         sliderInput(ns("geo_radius"), "Geolocation radius (m)",
-          min = 0, max = 5000, value = 300, step = 50),
+          min = 0, max = 1000, value = 250, step = 50),
         actionButton(ns("start_session"), "Launch", class = "btn btn-primary"),
         br(), br(),
         uiOutput(ns("qr_zone"))
@@ -46,7 +46,7 @@ mod_emargement_server <- function(id,params) {
     })
     
     # --- GPS CAPTURE -------------------------------------------
-    observeEvent(input$capture_gps, {
+    gps_js <- function() {
       shinyjs::runjs(sprintf('
         navigator.geolocation.getCurrentPosition(
           function(pos) {
@@ -57,12 +57,31 @@ mod_emargement_server <- function(id,params) {
           {enableHighAccuracy: true, timeout: 10000}
         );
       ', ns("gps_lat"), ns("gps_lon")))
+    }
+
+    # Auto-déclenche la capture dès que "gps" est sélectionné (y compris au chargement)
+    observeEvent(input$venue, {
+      req(input$venue == "gps")
+      gps_js()
+    })
+
+    # Bouton pour re-capturer manuellement
+    observeEvent(input$capture_gps, {
+      gps_js()
     })
 
     observeEvent(input$gps_lat, {
       req(input$gps_lat, input$gps_lon)
       presenter_coords$lat <- input$gps_lat
       presenter_coords$lon <- input$gps_lon
+    })
+
+    observe({
+      if (input$venue == "gps" && is.null(presenter_coords$lat)) {
+        shinyjs::hide("start_session")
+      } else {
+        shinyjs::show("start_session")
+      }
     })
 
     output$gps_status <- renderText({
@@ -156,10 +175,11 @@ mod_emargement_server <- function(id,params) {
     output$qr_zone <- renderUI({
       c <- current()
       req(c$token)  # n'affiche rien tant qu'on n'a pas de token
-      
-      tagList(
-        tags$br(),
-        imageOutput(ns("qr_img"), width = "350px", height = "350px"),
+
+      div(
+        style = "display: flex; flex-direction: column; gap: 10px; margin-top: 12px;",
+        div(style = "width: 350px; height: 350px; flex-shrink: 0;",
+            imageOutput(ns("qr_img"), width = "350px", height = "350px")),
         div(
           "Token: ",
           code(

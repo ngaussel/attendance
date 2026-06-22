@@ -150,44 +150,42 @@ mod_emargement_server <- function(id,params) {
       ))
     })
     
-    output$qr_img <- renderImage({
-      c <- current()
-      req(c$landingUrl)
-      tmp <- tempfile(fileext = ".png")
-      qr <- qrencode_raw(c$landingUrl,level =3 )
-      qr_resized <- qr[rep(1:nrow(qr), each = 11), rep(1:ncol(qr), each = 11)]
-      writePNG(qr_resized, target = tmp)
-      list(src = tmp, contentType = "image/png", alt = "QR code")
-    }, deleteFile = TRUE)
-    
     output$tok_txt <- renderText({ req(current()$token); current()$token })
     output$landing_link <- renderUI({
       req(current()$landingUrl)
       tags$a(href = current()$landingUrl, target = "_blank", current()$landingUrl)
     })
-    
+
     output$rotate_cd <- renderText({
       invalidateLater(1000, session)
       remaining <- difftime(current()$expiresAt, Sys.time(), units = "secs")
       sprintf("%.0f s", max(0, as.numeric(remaining)))
     })
-    
+
     output$qr_zone <- renderUI({
       c <- current()
-      req(c$token)  # n'affiche rien tant qu'on n'a pas de token
+      req(c$token)
+
+      tmp <- tempfile(fileext = ".png")
+      on.exit(unlink(tmp))
+      qr <- qrencode_raw(c$landingUrl, level = 3)
+      qr_resized <- qr[rep(1:nrow(qr), each = 11), rep(1:ncol(qr), each = 11)]
+      writePNG(qr_resized, target = tmp)
+      img_b64 <- base64enc::base64encode(tmp)
 
       div(
-        style = "display: flex; flex-direction: column; gap: 10px; margin-top: 12px;",
-        div(style = "width: 350px; height: 350px; flex-shrink: 0;",
-            imageOutput(ns("qr_img"), width = "350px", height = "350px")),
+        style = "display: flex; flex-direction: column; gap: 12px; margin-top: 12px;",
+        tags$img(
+          src    = paste0("data:image/png;base64,", img_b64),
+          width  = "350",
+          height = "350",
+          alt    = "QR code",
+          style  = "display: block; flex-shrink: 0;"
+        ),
         div(
           "Token: ",
-          code(
-            span(
-              style = "font-size: 18px; font-weight: bold;",
-              textOutput(ns("tok_txt"), inline = TRUE)
-            )
-          )
+          code(span(style = "font-size: 18px; font-weight: bold;",
+                    textOutput(ns("tok_txt"), inline = TRUE)))
         ),
         div("Check-in URL: ", uiOutput(ns("landing_link"))),
         div("Next refresh in: ", textOutput(ns("rotate_cd"), inline = TRUE))

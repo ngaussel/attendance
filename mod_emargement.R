@@ -19,7 +19,7 @@ mod_emargement_ui <- function(id) {
         ),
         sliderInput(ns("geo_radius"), "Geolocation radius (m)",
           min = 0, max = 1000, value = 250, step = 50),
-        actionButton(ns("start_session"), "Launch", class = "btn btn-primary"),
+        shinyjs::hidden(actionButton(ns("start_session"), "Launch", class = "btn btn-primary")),
         br(), br(),
         uiOutput(ns("qr_zone"))
     )
@@ -77,9 +77,8 @@ mod_emargement_server <- function(id,params) {
     })
 
     observe({
-      if (input$venue == "gps" && is.null(presenter_coords$lat)) {
-        shinyjs::hide("start_session")
-      } else {
+      req(input$venue)
+      if (!(input$venue == "gps" && is.null(presenter_coords$lat))) {
         shinyjs::show("start_session")
       }
     })

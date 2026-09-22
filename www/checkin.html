@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Attendance Check-in</title>
+<link rel="stylesheet" type="text/css" href="style.css">
+<link rel="icon" type="image/png" href="fav2.png">
+</head>
+<body>
+<div class="container">
+  <img src="sorbonne_logo.png" id="sorbonne-logo" alt="Sorbonne">
+  <h2>Attendance Check-in</h2>
+  <div class="ok">Valid token &#9989;</div>
+
+  <p>
+    <span class="muted">Session: </span><span id="session-info"></span>
+  </p>
+  <p><span class="muted">This link expires in </span><strong id="cd">&mdash;</strong></p>
+  <p>All fields are required.</p>
+  <p>Please be patient, confirmation might take a bit of time. <br>Only register once.</p>
+
+  <div id="form_zone">
+    <div class="field"><input id="email" type="email" placeholder="your@email.com"></div>
+    <div class="field"><input id="sid" type="text" placeholder="Student Id"></div>
+    <div class="field">
+      <select id="master">
+        <option value="IRFA">IRFA</option>
+        <option value="MMMEF">MMMEF</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="field"><input id="lnid" type="text" placeholder="Last Name"></div>
+    <div class="field"><input id="fnid" type="text" placeholder="First Name"></div>
+    <button id="submit" class="btn btn-primary">I'm present</button>
+    <br>
+    <a href="information.html" target="_self" style="margin-top: 2rem; font-size: 1.1rem; color: #888;">
+      Privacy &amp; data disclosure
+    </a>
+  </div>
+
+  <div id="feedback_zone">
+    <div class="ok" id="success_msg"></div>
+    <div class="err" id="error_msg"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js"></script>
+<script src="js/checkin.js"></script>
+</body>
+</html>

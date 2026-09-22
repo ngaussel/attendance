@@ -33,18 +33,10 @@ mod_emargement_server <- function(id,params) {
 
     current <- reactiveVal(list())
     presenter_coords <- reactiveValues(lat = NULL, lon = NULL)
+    live_session_id <- reactiveVal(NULL)
 
     token_timer <- reactiveTimer(TOKEN_TTL_SECONDS * 1000, session)
-    
-    # --- RÉCUPÉRATION DU TOKEN VIA URL --------------------------
-    observe({
-      query <- parseQueryString(session$clientData$url_search)
-      if (!is.null(query$t)) {
-        params$token <- query$t
-        params$started <- Sys.time()
-      }
-    })
-    
+
     # --- GPS CAPTURE -------------------------------------------
     gps_js <- function() {
       shinyjs::runjs(sprintf('
@@ -109,46 +101,82 @@ mod_emargement_server <- function(id,params) {
         params$session_lon <- parts[2]
       }
 
+      new_session_id <- tryCatch(
+        supabase_create_session(
+          course       = input$lecture,
+          venue_lat    = params$session_lat,
+          venue_lon    = params$session_lon,
+          geo_radius_m = input$geo_radius
+        ),
+        error = function(e) {
+          showNotification(
+            paste("Erreur création session Supabase :", conditionMessage(e)),
+            type = "error"
+          )
+          NULL
+        }
+      )
+      req(new_session_id)
+      live_session_id(new_session_id)
+
       params$session_presenter <- TRUE
       params$live_lecture <- input$lecture
       params$live_date <- input$date
     })
-    
+
     observe({
       req(nzchar(input$lecture), !is.null(input$date))
       req(params$session_presenter)
+      req(live_session_id())
       token_timer()  # redéclenche tous les TOKEN_TTL_SECONDS
-      
-      # génère le token
+
+      # génère le token et le pousse dans Supabase (source de vérité pour
+      # la validation côté étudiant, cf. supabase/schema.sql)
       tkn <- rand_token()
       now <- now_utc()
       exp <- now + TOKEN_TTL_SECONDS
-      session_id <- paste0(input$lecture, "_", format(input$date, "%Y-%m-%d"))
-      
+
+      ok <- tryCatch({
+        supabase_rotate_token(live_session_id(), tkn)
+        TRUE
+      }, error = function(e) {
+        showNotification(
+          paste("Erreur rotation token :", conditionMessage(e)),
+          type = "error"
+        )
+        FALSE
+      })
+      req(ok)
+
+      base_path <- session$clientData$url_pathname
+      if (!endsWith(base_path, "/")) base_path <- paste0(base_path, "/")
+
       landing <- paste0(
         session$clientData$url_protocol, "//",
         session$clientData$url_hostname,
         if (nzchar(session$clientData$url_port)) paste0(":", session$clientData$url_port) else "",
-        session$clientData$url_pathname,
-        "?t=", URLencode(tkn)
-      )
-      
-      token_store[[tkn]] <<- list(
-        session_id = session_id,
-        expires_at = exp,
-        lat = params$session_lat,
-        lon = params$session_lon,
-        geo_radius = input$geo_radius
+        base_path, "checkin.html",
+        "?s=", live_session_id(),
+        "&t=", URLencode(tkn),
+        "&course=", URLencode(input$lecture),
+        "&date=", format(input$date, "%Y-%m-%d")
       )
 
       current(list(
         token = tkn,
         landingUrl = landing,
         expiresAt = exp,
-        sessionId = session_id
+        sessionId = live_session_id()
       ))
     })
-    
+
+    session$onSessionEnded(function() {
+      sid <- isolate(live_session_id())
+      if (!is.null(sid)) {
+        tryCatch(supabase_close_session(sid), error = function(e) NULL)
+      }
+    })
+
     output$tok_txt <- renderText({ req(current()$token); current()$token })
     output$landing_link <- renderUI({
       req(current()$landingUrl)

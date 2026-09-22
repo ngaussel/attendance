@@ -33,11 +33,17 @@ body {
 }
 
 input[type="text"],
-input[type="email"] {
+input[type="email"],
+select {
   width: 100%;
   padding: 8px;
   border: 1px solid #ddd;
   border-radius: 6px;
+  box-sizing: border-box;
+}
+
+.field {
+  margin-bottom: 10px;
 }
 
 button {

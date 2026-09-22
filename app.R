@@ -5,57 +5,42 @@ library(glue)
 library(qrencoder)
 library(png)
 library(shinyjs)
-library(future)
-library(promises)
-plan(multisession,workers=2)
+library(httr2)
 
 
 # -- Sources ---------------
 source("globals.R")
 source("mod_emargement.R")
-source("mod_student.R")
 source("helper.R")
+source("R/supabase.R")
 
 
 
-# --- DYNAMIC UI: route vers la bonne vue -----------------------------------
+# --- UI ----------------------------------------------------------------
+# La vue étudiant est désormais une page statique (www/checkin.html) qui
+# valide la présence via la fonction Supabase validate_attendance() —
+# cf. supabase/schema.sql. Plus de session Shiny par étudiant.
 ui <- function(request) {
-  query <- parseQueryString(request$QUERY_STRING)
-  if (!is.null(query$t)) {
-    fluidPage(mod_student_ui("student"))
-  } else {
-    # Interface principale avec les modules
-    navbarPage(
-      div(class = "logo", img(src = "sorbonne_logo.png", height = "50px")),
-      title = "Attendance Management",
-      header = tags$head(
-        tags$link(rel = "stylesheet", type = "text/css", href = "style.css"),
-        tags$link(rel = "icon", type = "image/png", href = "fav1.png")),
-      tabPanel(
-        "Attendance",
-        mod_emargement_ui("attendance")  # avec namespace "attendance"
-      ),
-    )
-  }
+  navbarPage(
+    div(class = "logo", img(src = "sorbonne_logo.png", height = "50px")),
+    title = "Attendance Management",
+    header = tags$head(
+      tags$link(rel = "stylesheet", type = "text/css", href = "style.css"),
+      tags$link(rel = "icon", type = "image/png", href = "fav1.png")),
+    tabPanel(
+      "Attendance",
+      mod_emargement_ui("attendance")  # avec namespace "attendance"
+    ),
+  )
 }
 
 # --- SERVER ----------------------------------------------------------------
 
 server <- function(input, output, session) {
 
-  params  <- reactiveValues(token = NULL,
-                            started = NULL,
-                            session_presenter=FALSE)
-  
-  mod_emargement_server("attendance",params=params)
-   
-     observe({
-      query <- parseQueryString(session$clientData$url_search)
-      if (!is.null(query$t)) {
-        mod_student_server("student", token=query$t)
-      }
-    })
-    
+  params  <- reactiveValues(session_presenter = FALSE)
+
+  mod_emargement_server("attendance", params = params)
 }
 
 

@@ -1,7 +1,4 @@
 library(shiny)
-library(googlesheets4)
-library(tibble)
-library(glue)
 library(qrencoder)
 library(png)
 library(shinyjs)
@@ -11,7 +8,7 @@ library(httr2)
 # -- Sources ---------------
 source("globals.R")
 source("mod_emargement.R")
-source("helper.R")
+source("R/utils.R")
 source("R/supabase.R")
 
 

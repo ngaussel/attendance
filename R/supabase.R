@@ -35,12 +35,17 @@ supabase_create_session <- function(course, venue_lat, venue_lon, geo_radius_m,
 }
 
 supabase_rotate_token <- function(session_id, token) {
-  supabase_request(paste0("sessions?id=eq.", session_id)) |>
-    req_method("PATCH") |>
+  # Insère un nouveau token dans l'historique (session_tokens) au lieu
+  # d'écraser une seule colonne : un étudiant ayant scanné un token plus
+  # ancien doit pouvoir encore l'utiliser tant qu'il est dans sa propre
+  # fenêtre token_ttl_seconds + fill_seconds, même si le prof a déjà
+  # tourné vers un token plus récent entre-temps.
+  supabase_request("session_tokens") |>
     req_headers(Prefer = "return=minimal") |>
     req_body_json(list(
-      current_token   = token,
-      token_issued_at = iso_utc(now_utc())
+      session_id = session_id,
+      token      = token,
+      issued_at  = iso_utc(now_utc())
     )) |>
     req_perform()
 

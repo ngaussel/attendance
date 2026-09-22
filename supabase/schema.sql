@@ -2,7 +2,7 @@
 -- Version simplifiée, mono-enseignant (pas de multi-tenant pour l'instant,
 -- cf. saas_architecture.md §7 pour la trajectoire multi-tenant future).
 --
--- Principe de sécurité : RLS activé sur les deux tables, SANS policy pour
+-- Principe de sécurité : RLS activé sur toutes les tables, SANS policy pour
 -- l'anon/publishable key. Les étudiants ne touchent jamais les tables en
 -- direct : ils passent uniquement par la fonction validate_attendance()
 -- (SECURITY DEFINER, donc elle bypass RLS). Le prof (Shiny, via service_role
@@ -20,8 +20,6 @@ create table sessions (
   venue_lat double precision,
   venue_lon double precision,
   geo_radius_m integer not null default 300,
-  current_token text,               -- token rotatif, mis à jour par le prof toutes les TOKEN_TTL_SECONDS
-  token_issued_at timestamptz,      -- horodatage du dernier token émis
   token_ttl_seconds integer not null default 25,
   fill_seconds integer not null default 50,   -- fenêtre de tolérance après expiration du token affiché
   opens_at timestamptz not null default now(),
@@ -33,7 +31,23 @@ create table sessions (
 create index sessions_status_idx on sessions (status);
 
 -- ---------------------------------------------------------------------
--- 2. Présences validées
+-- 2. Tokens émis pour une session (historique, pas une valeur unique)
+-- ---------------------------------------------------------------------
+-- Le prof fait tourner le token toutes les token_ttl_seconds, mais un
+-- étudiant qui a scanné un ancien token doit pouvoir encore valider tant
+-- que CE token-là est dans sa fenêtre (token_ttl_seconds + fill_seconds) —
+-- même si un token plus récent a déjà été émis depuis. D'où une table
+-- d'historique plutôt qu'une seule colonne "current_token" écrasée à
+-- chaque rotation.
+create table session_tokens (
+  session_id uuid not null references sessions(id) on delete cascade,
+  token text not null,
+  issued_at timestamptz not null default now(),
+  primary key (session_id, token)
+);
+
+-- ---------------------------------------------------------------------
+-- 3. Présences validées
 -- ---------------------------------------------------------------------
 create table attendance_records (
   id uuid primary key default gen_random_uuid(),
@@ -58,15 +72,16 @@ create unique index attendance_one_device_per_session
   where device_fingerprint is not null;
 
 -- ---------------------------------------------------------------------
--- 3. RLS : activé, aucune policy => tout accès direct via anon/publishable
+-- 4. RLS : activé, aucune policy => tout accès direct via anon/publishable
 --    key est refusé. Seule la fonction validate_attendance() (SECURITY
 --    DEFINER) peut écrire depuis le client étudiant.
 -- ---------------------------------------------------------------------
 alter table sessions enable row level security;
+alter table session_tokens enable row level security;
 alter table attendance_records enable row level security;
 
 -- ---------------------------------------------------------------------
--- 4. Fonction de validation atomique, appelée depuis la page étudiante
+-- 5. Fonction de validation atomique, appelée depuis la page étudiante
 --    via supabase.rpc("validate_attendance", {...}).
 -- ---------------------------------------------------------------------
 create or replace function validate_attendance(
@@ -88,6 +103,7 @@ set search_path = public
 as $$
 declare
   v_session sessions%rowtype;
+  v_token_issued_at timestamptz;
   v_token_age_seconds double precision;
   v_distance_m double precision;
 begin
@@ -105,11 +121,15 @@ begin
     return jsonb_build_object('ok', false, 'reason', 'SESSION_CLOSED');
   end if;
 
-  if v_session.current_token is null or p_token <> v_session.current_token then
+  select issued_at into v_token_issued_at
+  from session_tokens
+  where session_id = p_session_id and token = p_token;
+
+  if not found then
     return jsonb_build_object('ok', false, 'reason', 'INVALID_TOKEN');
   end if;
 
-  v_token_age_seconds := extract(epoch from (now() - v_session.token_issued_at));
+  v_token_age_seconds := extract(epoch from (now() - v_token_issued_at));
   if v_token_age_seconds > (v_session.token_ttl_seconds + v_session.fill_seconds) then
     return jsonb_build_object('ok', false, 'reason', 'TOKEN_EXPIRED');
   end if;
